@@ -75,7 +75,7 @@ Cache
 
 Path: ``debug_toolbar.panels.cache.CachePanel``
 
-Cache queries.
+Cache queries. Is incompatible with Django's per-site caching.
 
 Signal
 ~~~~~~
@@ -217,6 +217,15 @@ Path: ``neo4j_panel.Neo4jPanel``
 
 Trace neo4j rest API calls in your django application, this also works for neo4django and neo4jrestclient, support for py2neo is on its way.
 
+Pympler
+~~~~~~~
+
+URL: https://pythonhosted.org/Pympler/django.html
+
+Path: ``pympler.panels.MemoryPanel``
+
+Shows process memory information (virtual size, resident set size) and model instances for the current request.
+
 Request History
 ~~~~~~~~~~~~~~~
 
@@ -305,6 +314,8 @@ CSS API at this time.
     .. automethod:: debug_toolbar.panels.Panel.process_view
 
     .. automethod:: debug_toolbar.panels.Panel.process_response
+
+.. _javascript-api:
 
 JavaScript API
 ~~~~~~~~~~~~~~

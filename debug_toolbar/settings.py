@@ -1,13 +1,11 @@
 from __future__ import absolute_import, unicode_literals
 
-try:
-    from importlib import import_module
-except ImportError:  # python 2.6
-    from django.utils.importlib import import_module
 import warnings
 
 from django.conf import settings
 from django.utils import six
+
+from debug_toolbar.compat import import_module
 
 
 # Always import this module as follows:
@@ -21,9 +19,9 @@ CONFIG_DEFAULTS = {
     # Toolbar options
     'DISABLE_PANELS': set(['debug_toolbar.panels.redirects.RedirectsPanel']),
     'INSERT_BEFORE': '</body>',
-    'JQUERY_URL': '//ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js',
+    'JQUERY_URL': '//ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js',
     'RENDER_PANELS': None,
-    'RESULTS_STORE_SIZE': 10,
+    'RESULTS_CACHE_SIZE': 10,
     'ROOT_TAG_EXTRA_ATTRS': '',
     'SHOW_COLLAPSED': False,
     'SHOW_TOOLBAR_CALLBACK': 'debug_toolbar.middleware.show_toolbar',

@@ -11,22 +11,16 @@ from django.core.cache import (
     get_cache as original_get_cache)
 from django.core.cache.backends.base import BaseCache
 from django.dispatch import Signal
+from django.middleware import cache as middleware_cache
 from django.utils.translation import ugettext_lazy as _, ungettext
 
-try:
-    from django.core.cache import CacheHandler, caches as original_caches
-except ImportError:  # Django < 1.7
-    CacheHandler = None
-    original_caches = None
-try:
-    from collections import OrderedDict
-except ImportError:
-    from django.utils.datastructures import SortedDict as OrderedDict
 
+from debug_toolbar import settings as dt_settings
+from debug_toolbar.compat import (
+    OrderedDict, CacheHandler, caches as original_caches)
 from debug_toolbar.panels import Panel
 from debug_toolbar.utils import (tidy_stacktrace, render_stacktrace,
                                  get_template_info, get_stack)
-from debug_toolbar import settings as dt_settings
 
 
 cache_called = Signal(providing_args=[
@@ -89,6 +83,10 @@ class CacheStatTracker(BaseCache):
         return self.cache.delete(*args, **kwargs)
 
     @send_signal
+    def clear(self, *args, **kwargs):
+        return self.cache.clear(*args, **kwargs)
+
+    @send_signal
     def has_key(self, *args, **kwargs):
         # Ignore flake8 rules for has_key since we need to support caches
         # that may be using has_key.
@@ -127,15 +125,26 @@ def get_cache(*args, **kwargs):
     return CacheStatTracker(original_get_cache(*args, **kwargs))
 
 
-def get_cache_handler():
-    if CacheHandler is None:
-        return None
-
+if CacheHandler is not None:
     class CacheHandlerPatch(CacheHandler):
         def __getitem__(self, alias):
             actual_cache = super(CacheHandlerPatch, self).__getitem__(alias)
             return CacheStatTracker(actual_cache)
+
+
+def get_cache_handler():
+    if CacheHandler is None:
+        return None
     return CacheHandlerPatch()
+
+
+# Must monkey patch the middleware's cache module as well in order to
+# cover per-view level caching. This needs to be monkey patched outside
+# of the enable_instrumentation method since the django's
+# decorator_from_middleware_with_args will store the cache from core.caches
+# when it wraps the view.
+middleware_cache.get_cache = get_cache
+middleware_cache.caches = get_cache_handler()
 
 
 class CachePanel(Panel):
@@ -155,6 +164,7 @@ class CachePanel(Panel):
             ('get', 0),
             ('set', 0),
             ('delete', 0),
+            ('clear', 0),
             ('get_many', 0),
             ('set_many', 0),
             ('delete_many', 0),
@@ -214,19 +224,24 @@ class CachePanel(Panel):
                          count) % dict(count=count)
 
     def enable_instrumentation(self):
-        # This isn't thread-safe because cache connections aren't thread-local
-        # in Django, unlike database connections.
         cache.get_cache = get_cache
         if CacheHandler is None:
             cache.cache = CacheStatTracker(original_cache)
         else:
-            cache.caches = get_cache_handler()
+            if isinstance(middleware_cache.caches, CacheHandlerPatch):
+                cache.caches = middleware_cache.caches
+            else:
+                cache.caches = get_cache_handler()
 
     def disable_instrumentation(self):
         if CacheHandler is None:
             cache.cache = original_cache
         else:
             cache.caches = original_caches
+            # While it can be restored to the original, any views that were
+            # wrapped with the cache_page decorator will continue to use a
+            # monkey patched cache.
+            middleware_cache.caches = original_caches
         cache.get_cache = original_get_cache
 
     def process_response(self, request, response):

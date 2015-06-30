@@ -7,10 +7,10 @@ from django.contrib.auth.models import User
 from django.db import connection
 from django.db.utils import DatabaseError
 from django.shortcuts import render
-from django.utils import unittest
 from django.test.utils import override_settings
 
 from ..base import BaseTestCase
+from debug_toolbar.compat import unittest
 
 
 class SQLPanelTestCase(BaseTestCase):
@@ -23,6 +23,14 @@ class SQLPanelTestCase(BaseTestCase):
     def tearDown(self):
         self.panel.disable_instrumentation()
         super(SQLPanelTestCase, self).tearDown()
+
+    def test_disabled(self):
+        config = {
+            'DISABLE_PANELS': set(['debug_toolbar.panels.sql.SQLPanel'])
+        }
+        self.assertTrue(self.panel.enabled)
+        with self.settings(DEBUG_TOOLBAR_CONFIG=config):
+            self.assertFalse(self.panel.enabled)
 
     def test_recording(self):
         self.assertEqual(len(self.panel._queries), 0)
